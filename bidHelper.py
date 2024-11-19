@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 import time
 from datetime import datetime, timedelta
 from pynput import keyboard
@@ -15,11 +15,16 @@ class LoginPage:
         self.driver = driver
 
     def find_element(self, by, value):
-        try:
-            return self.driver.find_element(by, value)
-        except NoSuchElementException:
-            print(f"No element found with {by} = {value}")
-            return None
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                return self.driver.find_element(by, value)
+            except (NoSuchElementException, StaleElementReferenceException):
+                print(f"Attempt {attempt+1}: Failed to find or interact with element {by} = {value}")
+                if attempt < max_attempts - 1:  # Don't sleep after the last attempt
+                    time.sleep(0.1)  # Wait for 1 second
+                else:
+                    return None
 
     @property
     def deadline_time(self):
@@ -149,6 +154,7 @@ def time_listener(start_seconds, end_seconds, add_price):
     print(bid_price)
 
     while True:
+        time.sleep(0.1)
         current_time = login_page.current_time
         print(current_time)
         # Calculate the difference between deadline and current time
@@ -159,13 +165,14 @@ def time_listener(start_seconds, end_seconds, add_price):
         print(current_price)
 
         if time_difference <= timedelta(seconds=end_seconds):
+            time.sleep(0.6)
             print("time listener stop 1")
+            print(current_time)
             break
 
         if (abs(int(bid_price) - int(current_price))) <= 300:
             print("price listener stop 1")
             break
-        time.sleep(0.1)
 
     print("listener stop")
     # Confirm verification code
@@ -173,7 +180,7 @@ def time_listener(start_seconds, end_seconds, add_price):
 
 
 # Create and start a new thread for the time listener
-time_thread = threading.Thread(target=time_listener, args=(10, 1, 700))
+time_thread = threading.Thread(target=time_listener, args=(10, 2, 700))
 time_thread.start()
 
 key_thread = threading.Thread(target=key_listener)
