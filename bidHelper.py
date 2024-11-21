@@ -96,13 +96,13 @@ driver = webdriver.Chrome(options=options)
 # Open the webpage
 driver.get(url)
 
-time.sleep(61)
-
 # Instantiate LoginPage
 login_page = LoginPage(driver)
 
 # Extract the deadline
-deadline_time = login_page.deadline_time
+deadline_time = None
+while deadline_time is None:
+    deadline_time = login_page.deadline_time
 print(deadline_time)
 
 # 定义键盘监听事件
@@ -110,6 +110,7 @@ def on_press(key):
     try:
         if key == keyboard.Key.enter:
             login_page.confirm_verification_code()
+        elif key == keyboard.Key.backspace:
             login_page.confirm_bid()
         elif key == keyboard.Key.esc:
             login_page.cancel_verification_code()
@@ -124,6 +125,8 @@ def time_listener(start_seconds, end_seconds, add_price):
     while True:
         current_time = login_page.current_time
         print(current_time)
+        if current_time is None:
+            continue
         # Calculate the difference between deadline and current time
         time_difference = datetime.combine(datetime.today(), deadline_time) - datetime.combine(datetime.today(), current_time)
         print(time_difference)
@@ -150,19 +153,25 @@ def time_listener(start_seconds, end_seconds, add_price):
     login_page.edit_verification_code()
 
     # Print bid price
-    bid_price = login_page.bid_price
+    bid_price = None
+    while bid_price is None:
+        bid_price = login_page.bid_price
     print(bid_price)
 
     while True:
         time.sleep(0.1)
         current_time = login_page.current_time
         print(current_time)
+        if current_time is None:
+            continue
         # Calculate the difference between deadline and current time
         time_difference = datetime.combine(datetime.today(), deadline_time) - datetime.combine(datetime.today(), current_time)
         print(time_difference)
 
         current_price = login_page.current_price
         print(current_price)
+        if current_price is None:
+            continue
 
         if time_difference <= timedelta(seconds=end_seconds):
             time.sleep(0.6)
