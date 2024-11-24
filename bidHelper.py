@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
@@ -15,17 +16,33 @@ class LoginPage:
         self.driver = driver
 
     def find_element(self, by, value):
+        attempts = 0
         max_attempts = 3
-        for attempt in range(max_attempts):
+        while attempts < max_attempts:
             try:
-                return self.driver.find_element(by, value)
-            except (NoSuchElementException, StaleElementReferenceException):
-                print(f"Attempt {attempt+1}: Failed to find or interact with element {by} = {value}")
-                if attempt < max_attempts - 1:  # Don't sleep after the last attempt
-                    time.sleep(0.1)  # Wait for 1 second
-                else:
-                    return None
+                element = self.driver.find_element(by, value)
+                if element is not None:
+                    return element
+            except StaleElementReferenceException:
+                print(f"Attempt {attempts+1}: Failed to interact with element due to staleness")
+                time.sleep(0.1)
+            except NoSuchElementException:
+                print(f"Attempt {attempts+1}: Failed to find element {by} = {value}")
+                time.sleep(0.1)
+            attempts += 1
+        return None
 
+    def element_text(self, by, value):
+        try:
+            element = self.find_element(by, value)
+            if element is not None:
+                text = element.text
+                return text
+        except StaleElementReferenceException:
+            print(f"Attempt {attempts+1}: Failed to interact with element due to staleness")
+            time.sleep(0.1)
+        return None
+        
     @property
     def deadline_time(self):
         element = self.find_element(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[1]/span[4]/span[2]')
@@ -86,12 +103,13 @@ class LoginPage:
             return element.text
         return None
 
+service = Service('/opt/homebrew/bin/chromedriver')
 # Setup chrome options
 options = Options()
 options.add_experimental_option("debuggerAddress", "127.0.0.1:8000")
 
 # Choose Chrome Browser
-driver = webdriver.Chrome(options=options)
+driver = webdriver.Chrome(service=service, options=options)
 
 # Open the webpage
 driver.get(url)
@@ -189,7 +207,7 @@ def time_listener(start_seconds, end_seconds, add_price):
 
 
 # Create and start a new thread for the time listener
-time_thread = threading.Thread(target=time_listener, args=(10, 2, 700))
+time_thread = threading.Thread(target=time_listener, args=(14, 2, 900))
 time_thread.start()
 
 key_thread = threading.Thread(target=key_listener)
