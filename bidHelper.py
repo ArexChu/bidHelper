@@ -8,28 +8,21 @@ from datetime import datetime, timedelta
 from pynput import keyboard
 import threading
 import os
-
-url = os.environ['URL']
+import platform
 
 class LoginPage:
     def __init__(self, driver):
         self.driver = driver
 
     def find_element(self, by, value):
-        attempts = 0
-        max_attempts = 3
-        while attempts < max_attempts:
-            try:
-                element = self.driver.find_element(by, value)
-                if element is not None:
-                    return element
-            except StaleElementReferenceException:
-                print(f"Attempt {attempts+1}: Failed to interact with element due to staleness")
-                time.sleep(0.1)
-            except NoSuchElementException:
-                print(f"Attempt {attempts+1}: Failed to find element {by} = {value}")
-                time.sleep(0.1)
-            attempts += 1
+        try:
+            element = self.driver.find_element(by, value)
+            if element is not None:
+                return element
+        except StaleElementReferenceException:
+            print(f"find_element Failed to interact with element {by} = {value}")
+        except NoSuchElementException:
+            print(f"find_element Failed to find element {by} = {value}")
         return None
 
     def element_text(self, by, value):
@@ -39,22 +32,21 @@ class LoginPage:
                 text = element.text
                 return text
         except StaleElementReferenceException:
-            print(f"Attempt {attempts+1}: Failed to interact with element due to staleness")
-            time.sleep(0.1)
+            print(f"element_text Failed to interact with element {by} = {value}")
         return None
         
     @property
     def deadline_time(self):
-        element = self.find_element(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[1]/span[4]/span[2]')
+        element = self.element_text(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[1]/span[4]/span[2]')
         if element is not None:
-            deadline_time_str = element.text # "14:38"
+            deadline_time_str = element
             return datetime.strptime(deadline_time_str, "%H:%M").time()
         return None
     @property
     def current_time(self):
-        element = self.find_element(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[2]/span[2]/span')
+        element = self.element_text(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[2]/span[2]/span')
         if element is not None:
-            current_time_str = element.text # "13:01:55"
+            current_time_str = element
             return datetime.strptime(current_time_str, "%H:%M:%S").time()
         return None
     def set_add_price(self, add_price):
@@ -92,18 +84,27 @@ class LoginPage:
 
     @property
     def bid_price(self):
-        element = self.find_element(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[2]/div[1]/div[1]/span/span')
+        element = self.element_text(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[2]/div[1]/div[1]/span/span')
         if element is not None:
-            return element.text
+            return element
         return None
     @property
     def current_price(self):
-        element = self.find_element(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[2]/span[3]/span')
+        element = self.element_text(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[2]/span[3]/span')
         if element is not None:
-            return element.text
+            return element
         return None
 
-service = Service('/opt/homebrew/bin/chromedriver')
+# init env
+url = os.environ['URL']
+architecture = platform.machine()
+if architecture == 'x86_64':
+    service = Service('/usr/local/bin/chromedriver')
+elif architecture == 'arm64':
+    service = Service('/opt/homebrew/bin/chromedriver')
+else:
+    print("Unknown architecture: " + architecture)
+
 # Setup chrome options
 options = Options()
 options.add_experimental_option("debuggerAddress", "127.0.0.1:8000")
@@ -112,18 +113,18 @@ options.add_experimental_option("debuggerAddress", "127.0.0.1:8000")
 driver = webdriver.Chrome(service=service, options=options)
 
 # Open the webpage
-driver.get(url)
+#driver.get(url)
+driver.switch_to.window(driver.window_handles[-1])
 
 # Instantiate LoginPage
 login_page = LoginPage(driver)
 
-# Extract the deadline
 deadline_time = None
 while deadline_time is None:
     deadline_time = login_page.deadline_time
+    time.sleep(0.1)
 print(deadline_time)
 
-# 定义键盘监听事件
 def on_press(key):
     try:
         if key == keyboard.Key.enter:
@@ -139,76 +140,57 @@ def key_listener():
     with keyboard.Listener(on_press=on_press) as listener:
         listener.join()
 
-def time_listener(start_seconds, end_seconds, add_price):
-    while True:
-        current_time = login_page.current_time
-        print(current_time)
-        if current_time is None:
-            continue
-        # Calculate the difference between deadline and current time
-        time_difference = datetime.combine(datetime.today(), deadline_time) - datetime.combine(datetime.today(), current_time)
-        print(time_difference)
-    
-        if time_difference <= timedelta(seconds=start_seconds):
-            print("time listener start 1")
-            break
-    
-        # Sleep for a while before checking the time again
-        time.sleep(0.1)
-
-    print("time listener start 2")
-
-    # Set add price
+def bid_help(add_price):
     login_page.set_add_price(add_price)
-
-    # Increase price
     login_page.increase_price()
-
-    # Bid
     login_page.bid()
-
-    # Edit verification code
     login_page.edit_verification_code()
 
-    # Print bid price
-    bid_price = None
-    while bid_price is None:
+def price_listener():
+    while True:
+        time.sleep(0.1)
+        current_price = login_page.current_price
         bid_price = login_page.bid_price
-    print(bid_price)
+        print(current_price)
+        if current_price is None or bid_price is None:
+            continue
+        print(bid_price)
+        price_difference = abs(int(bid_price) - int(current_price))
+        print(price_difference)
 
+        if price_difference <= 300:
+            break
+    print("price listener stop")
+    print(current_price)
+
+    time.sleep(0.1)
+    login_page.confirm_verification_code()
+
+def time_listener(seconds):
     while True:
         time.sleep(0.1)
         current_time = login_page.current_time
-        print(current_time)
         if current_time is None:
             continue
-        # Calculate the difference between deadline and current time
+        print(current_time)
         time_difference = datetime.combine(datetime.today(), deadline_time) - datetime.combine(datetime.today(), current_time)
         print(time_difference)
 
-        current_price = login_page.current_price
-        print(current_price)
-        if current_price is None:
-            continue
-
-        if time_difference <= timedelta(seconds=end_seconds):
-            time.sleep(0.6)
-            print("time listener stop 1")
-            print(current_time)
+        if time_difference <= timedelta(seconds=seconds):
             break
+    print("time listener stop")
+    print(current_time)
 
-        if (abs(int(bid_price) - int(current_price))) <= 300:
-            print("price listener stop 1")
-            break
-
-    print("listener stop")
-    # Confirm verification code
+    time.sleep(0.6)
     login_page.confirm_verification_code()
 
 
 # Create and start a new thread for the time listener
-time_thread = threading.Thread(target=time_listener, args=(14, 2, 900))
-time_thread.start()
+#time_thread = threading.Thread(target=time_listener(2))
+#time_thread.start()
 
-key_thread = threading.Thread(target=key_listener)
+price_thread = threading.Thread(target=price_listener())
+price_thread.start()
+
+key_thread = threading.Thread(target=key_listener())
 key_thread.start()
