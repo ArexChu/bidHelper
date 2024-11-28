@@ -89,8 +89,8 @@ class LoginPage:
             return element
         return None
     @property
-    def current_price(self):
-        element = self.element_text(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[2]/span[3]/span')
+    def max_price(self):
+        element = self.element_text(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[1]/div[2]/div/div[2]/span[5]/span/span[2]')
         if element is not None:
             return element
         return None
@@ -147,50 +147,41 @@ def bid_help(add_price):
     login_page.edit_verification_code()
 
 def price_listener():
+    print("price listener stop")
     while True:
         time.sleep(0.1)
-        current_price = login_page.current_price
+        max_price = login_page.max_price
         bid_price = login_page.bid_price
-        print(current_price)
-        if current_price is None or bid_price is None:
-            continue
-        print(bid_price)
-        price_difference = abs(int(bid_price) - int(current_price))
-        print(price_difference)
-
-        if price_difference <= 300:
-            break
-    print("price listener stop")
-    print(current_price)
-
-    time.sleep(0.1)
-    login_page.confirm_verification_code()
+        print(max_price)
+        if max_price is not None and bid_price is not None:
+            print(bid_price)
+            price_difference = int(max_price) - int(bid_price)
+            if 0 <= price_difference <= 300:
+                print(f'price listener stop {bid_price}')
+                time.sleep(0.1)
+                login_page.confirm_verification_code()
 
 def time_listener(seconds):
+    print("time listener start")
     while True:
         time.sleep(0.1)
         current_time = login_page.current_time
-        if current_time is None:
-            continue
-        print(current_time)
-        time_difference = datetime.combine(datetime.today(), deadline_time) - datetime.combine(datetime.today(), current_time)
-        print(time_difference)
-
-        if time_difference <= timedelta(seconds=seconds):
-            break
-    print("time listener stop")
-    print(current_time)
-
-    time.sleep(0.6)
-    login_page.confirm_verification_code()
+        if current_time is not None:
+            print(current_time)
+            time_difference = datetime.combine(datetime.today(), deadline_time) - datetime.combine(datetime.today(), current_time)
+            print(time_difference)
+            if time_difference <= timedelta(seconds=seconds):
+                print(f'time listener stop {current_time}')
+                time.sleep(0.6)
+                login_page.confirm_verification_code()
 
 
 # Create and start a new thread for the time listener
-#time_thread = threading.Thread(target=time_listener(2))
-#time_thread.start()
-
-price_thread = threading.Thread(target=price_listener())
+price_thread = threading.Thread(target=price_listener)
 price_thread.start()
 
-key_thread = threading.Thread(target=key_listener())
+time_thread = threading.Thread(target=time_listener, args=(2,))
+time_thread.start()
+
+key_thread = threading.Thread(target=key_listener)
 key_thread.start()
