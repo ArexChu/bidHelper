@@ -37,6 +37,18 @@ class LoginPage:
             print(f"element_text Failed to find element {by} = {value}")
         return None
 
+    def element_value(self, by, value):
+        try:
+            element = self.find_element(by, value)
+            if element is not None:
+                value = element.get_attribute('value')
+                return value
+        except StaleElementReferenceException:
+            print(f"element_value Failed to interact with element {by} = {value}")
+        except NoSuchElementException:
+            print(f"element_value Failed to find element {by} = {value}")
+        return None
+
     def element_click(self, by, value, retries=3):
         for i in range(retries):
             try:
@@ -79,6 +91,13 @@ class LoginPage:
         element = self.element_click(By.XPATH, '//*[@id="root"]/div/div[2]/div/div[3]/div[2]/div[2]/div/div[2]/div[3]/div[3]/div/span')
         if element is not None:
             element.click()
+
+    @property
+    def verification_code(self):
+        element = self.element_value(By.XPATH, '//*[@id="bidprice"]')
+        if element is not None:
+            return element
+        return None
 
     def edit_verification_code(self):
         element = self.element_click(By.XPATH, '//*[@id="bidprice"]')
@@ -171,8 +190,10 @@ def price_listener():
         print(f'max price: {max_price}')
         if max_price is not None and bid_price is not None:
             print(f'bid price: {bid_price}')
+            verification_code = login_page.verification_code
             price_difference = int(max_price) - int(bid_price)
-            if 0 <= price_difference <= 300:
+            if 0 <= price_difference <= 300  and len(verification_code) == 4:
+                print(f'verification code: {verification_code}')
                 print(f'price listener stop {bid_price}')
                 time.sleep(0.1)
                 login_page.confirm_verification_code()
