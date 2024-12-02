@@ -198,7 +198,7 @@ def price_listener():
                 time.sleep(0.1)
                 login_page.confirm_verification_code()
             else:
-                print(f'bid price {bid_price} is too bigger than max price {max_price}')
+                print(f'bid price {bid_price} is too bigger than max price {max_price}, or {verification_code} not right')
 
 def time_listener(seconds):
     print("time listener start")
