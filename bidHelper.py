@@ -212,6 +212,9 @@ def time_listener(seconds):
                 print(f'time listener stop {current_time}')
                 time.sleep(0.1)
                 login_page.confirm_verification_code()
+                confirm_time = datetime.now()
+                formatted_time = confirm_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+                print(f'confirm time: {formatted_time}')
             else:
                 print(f'current time: {current_time}')
 
@@ -220,7 +223,7 @@ def time_listener(seconds):
 price_thread = threading.Thread(target=price_listener)
 price_thread.start()
 
-time_thread = threading.Thread(target=time_listener, args=(2,))
+time_thread = threading.Thread(target=time_listener, args=(1,))
 time_thread.start()
 
 key_thread = threading.Thread(target=key_listener)
