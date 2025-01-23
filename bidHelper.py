@@ -245,10 +245,9 @@ def sys_time_listener(sys_seconds):
             login_page.confirm_verification_code()
             #print(f'time confirm: {current_time}')
             print(f'sys confirm time: {now}')
-            time.sleep(1)
             confirm_time = login_page.confirm_time
             print(f'remote confirm time: {confirm_time}')
-            time.sleep(1)
+            time.sleep(0.5)
             login_page.confirm_bid()
         else:
             pass
@@ -273,8 +272,8 @@ def bid_time_listener(price, sys_seconds, bid):
             #print(f'current time: {now}')
 
 def main():
-    production = False
-    bid = True
+    production = 0
+    bid = 0
     if production:
         #time_process = Process(target=time_listener, args=(1,))
         #time_process.start()
@@ -287,11 +286,11 @@ def main():
         key_process = Process(target=key_listener)
         key_process.start()
     else:
-        delta = 0.01
+        delta = 0.1
         for i in range(60, 0, -10):
             exec(f"bid_price_process_{i} = Process(target=bid_time_listener, args=(9000,{i-7},bid,))\nbid_price_process_{i}.start()")
             exec(f"sys_time_process_{i} = Process(target=sys_time_listener, args=({i-delta},))\nsys_time_process_{i}.start()")
-            delta += 0.01
+            delta += 0.1
 
 if __name__ == '__main__':
     main()
